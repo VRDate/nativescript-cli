@@ -14,21 +14,13 @@ export class ITMSTransporterService implements IITMSTransporterService {
 
 	constructor(private $bplistParser: IBinaryPlistParser,
 		private $childProcess: IChildProcess,
-		private $devicePlatformsConstants: Mobile.IDevicePlatformsConstants,
 		private $errors: IErrors,
 		private $fs: IFileSystem,
 		private $hostInfo: IHostInfo,
 		private $httpClient: Server.IHttpClient,
 		private $injector: IInjector,
 		private $logger: ILogger,
-		private $staticConfig: IStaticConfig,
 		private $xcodeSelectService: IXcodeSelectService) { }
-
-	// This property was introduced due to the fact that the $platformService dependency
-	// ultimately tries to resolve the current project's dir and fails if not executed from within a project
-	private get $platformService(): IPlatformService {
-		return this.$injector.resolve("platformService");
-	}
 
 	private get $projectData(): IProjectData {
 		return this.$injector.resolve("projectData");
@@ -46,25 +38,13 @@ export class ITMSTransporterService implements IITMSTransporterService {
 				itmsDirectory = temp.mkdirSync("itms-"),
 				innerDirectory = path.join(itmsDirectory, "mybundle.itmsp"),
 				ipaFileLocation = path.join(innerDirectory, ipaFileName),
-				platform = this.$devicePlatformsConstants.iOS,
-				forDevice = true,
-				iOSBuildConfig: IiOSBuildConfig = {
-					buildForDevice: forDevice,
-					mobileProvisionIdentifier: data.mobileProvisionIdentifier,
-					codeSignIdentity: data.codeSignIdentity
-				},
 				loggingLevel = data.verboseLogging ? ITMSConstants.VerboseLoggingLevels.Verbose : ITMSConstants.VerboseLoggingLevels.Informational,
 				bundleId = this.getBundleIdentifier(data.ipaFilePath).wait(),
 				iOSApplication = this.getiOSApplication(data.username, data.password, bundleId).wait();
 
 			this.$fs.createDirectory(innerDirectory).wait();
 
-			if (data.ipaFilePath) {
-				this.$fs.copyFile(data.ipaFilePath, ipaFileLocation).wait();
-			} else {
-				this.$platformService.buildPlatform(platform, iOSBuildConfig).wait();
-				this.$platformService.copyLastOutput(platform, ipaFileLocation, { isForDevice: forDevice }).wait();
-			}
+			this.$fs.copyFile(data.ipaFilePath, ipaFileLocation).wait();
 
 			let ipaFileHash = this.$fs.getFileShasum(ipaFileLocation, {algorithm: "md5"}).wait(),
 				ipaFileSize = this.$fs.getFileSize(ipaFileLocation).wait(),
